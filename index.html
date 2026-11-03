@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake Game - Bhinneka Tunggal Ika</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --nokia-bg: #879A27;
+            --nokia-border: #4A5515;
+            --p1-color: #1A2608; /* Dark Green */
+            --p2-color: #001A33; /* Dark Blue */
+            --food-color: #CC0000;
+        }
+
+        body {
+            font-family: 'VT323', monospace;
+            background-color: #222;
+            color: white;
+            overflow: hidden; /* Prevent scrolling on TV */
+            user-select: none;
+        }
+
+        .nokia-screen {
+            background-color: var(--nokia-bg);
+            border: 8px solid var(--nokia-border);
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .pixel-text {
+            text-shadow: 2px 2px 0px rgba(0,0,0,0.3);
+        }
+
+        .btn-retro {
+            background-color: #dddddd;
+            color: #111;
+            border: 4px solid #fff;
+            border-bottom-color: #888;
+            border-right-color: #888;
+            transition: all 0.1s;
+        }
+
+        .btn-retro:active {
+            border: 4px solid #888;
+            border-bottom-color: #fff;
+            border-right-color: #fff;
+            transform: translate(2px, 2px);
+        }
+
+        .btn-answer {
+            background-color: #f0f0f0;
+            color: #111;
+            border: 4px solid #ccc;
+            transition: all 0.2s;
+        }
+        
+        .btn-answer:hover {
+            background-color: #fff;
+            border-color: #666;
+            transform: scale(1.02);
+        }
+
+        #gameCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            image-rendering: pixelated;
+        }
+
+        /* Animations */
+        @keyframes popIn {
+            0% { transform: scale(0.8); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-pop {
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        .modal-overlay {
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(4px);
+        }
+
+        .flag-indo {
+            width: 40px;
+            height: 24px;
+            background: linear-gradient(to bottom, red 50%, white 50%);
+            border: 1px solid #fff;
+            display: inline-block;
+            vertical-align: middle;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex items-center justify-center">
+
+    <!-- MAIN CONTAINER (16:9 Aspect Ratio Lock for Smart TV) -->
+    <div id="appContainer" class="relative w-full max-w-[1920px] aspect-video bg-gray-900 overflow-hidden shadow-2xl flex flex-col">
+        
+        <!-- HEADER -->
+        <div class="h-20 bg-gray-800 flex justify-between items-center px-8 border-b-4 border-gray-700 z-10">
+            <div class="flex items-center gap-4">
+                <div class="flag-indo"></div>
+                <h1 class="text-4xl text-yellow-400 tracking-wider pixel-text">PETUALANGAN BHINNEKA TUNGGAL IKA</h1>
+            </div>
+            <div class="text-3xl text-white">PPKn Kelas 4 SD</div>
+        </div>
+
+        <!-- SCREEN VIEWS -->
+        <div class="flex-1 relative flex items-center justify-center p-4">
+            
+            <!-- 1. MAIN MENU -->
+            <div id="viewMainMenu" class="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 z-20">
+                <h1 class="text-8xl text-green-400 mb-2 pixel-text">SNAKE GAME</h1>
+                <h2 class="text-4xl text-white mb-8">EDISI LEADERBOARD</h2>
+                
+                <input type="text" id="playerNameInput" placeholder="KETIK NAMAMU..." class="text-4xl p-4 mb-8 text-center text-black font-bold uppercase rounded-xl border-4 border-gray-400 w-[500px]" maxlength="15" autocomplete="off">
+
+                <div class="flex flex-col gap-6 w-[500px]">
+                    <button onclick="checkNameAndGoToSettings()" class="btn-retro text-4xl py-4 font-bold text-center">MULAI BERMAIN</button>
+                    <button onclick="showView('viewHowTo')" class="btn-retro text-4xl py-4 font-bold text-center">CARA BERMAIN</button>
+                </div>
+
+                <div class="absolute bottom-8 text-xl text-gray-400">Gunakan Layar Penuh (F11) untuk pengalaman terbaik di Smart TV</div>
+            </div>
+
+            <!-- 2. HOW TO PLAY -->
+            <div id="viewHowTo" class="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 z-20 hidden">
+                <div class="bg-gray-800 p-8 border-4 border-gray-600 rounded-xl w-3/4 max-w-4xl text-center">
+                    <h2 class="text-6xl text-yellow-400 mb-8 pixel-text">CARA BERMAIN</h2>
+                    <ul class="text-3xl text-left space-y-4 mb-8 text-gray-200 leading-relaxed">
+                        <li>🎮 Masukkan namamu sebelum mulai bermain.</li>
+                        <li>🟩 Arahkan ular memakan apel menggunakan <b>Tombol Panah</b> atau <b>W,A,S,D</b>.</li>
+                        <li>❓ Setiap memakan apel, akan muncul <b>Soal PPKn</b>. Jawab dengan benar untuk 10 poin!</li>
+                        <li>💀 Jangan menabrak tembok atau tubuh sendiri, atau permainan berakhir.</li>
+                        <li>🏆 Kumpulkan skor sebanyak mungkin untuk masuk <b>Papan Peringkat (Leaderboard)</b>!</li>
+                    </ul>
+                    <button onclick="showView('viewMainMenu')" class="btn-retro text-3xl py-3 px-12 font-bold mt-4">KEMBALI</button>
+                </div>
+            </div>
+
+            <!-- 3. SETTINGS (Speed Selection) -->
+            <div id="viewSettings" class="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 z-20 hidden">
+                <div class="bg-gray-800 p-8 border-4 border-gray-600 rounded-xl w-3/4 max-w-3xl text-center">
+                    <h2 class="text-6xl text-yellow-400 mb-8 pixel-text">PILIH KECEPATAN ULAR</h2>
+                    <div class="flex flex-col gap-6 w-3/4 mx-auto mb-8">
+                        <button onclick="startGame(300)" class="btn-retro text-4xl py-4 font-bold bg-green-200">SANGAT LAMBAT (Pemula)</button>
+                        <button onclick="startGame(200)" class="btn-retro text-4xl py-4 font-bold bg-yellow-200">LAMBAT (Disarankan)</button>
+                        <button onclick="startGame(100)" class="btn-retro text-4xl py-4 font-bold bg-red-200">NORMAL (Tantangan)</button>
+                    </div>
+                    <button onclick="showView('viewMainMenu')" class="btn-retro text-3xl py-3 px-12 font-bold mt-4">KEMBALI</button>
+                </div>
+            </div>
+
+            <!-- 4. GAME UI -->
+            <div id="viewGame" class="absolute inset-0 flex flex-col bg-gray-800 hidden z-10">
+                <!-- Scoreboard -->
+                <div class="flex justify-between items-center p-4 bg-gray-900 border-b-4 border-gray-700 h-24">
+                    <div id="p1ScoreBoard" class="flex-1 flex flex-col items-start px-8 transition-opacity duration-300">
+                        <div id="displayPlayerName" class="text-3xl text-green-400 font-bold uppercase">PEMAIN</div>
+                        <div class="text-5xl text-white">SKOR: <span id="p1Score">0</span></div>
+                    </div>
+                    
+                    <div class="flex flex-col items-center justify-center">
+                        <div id="turnIndicator" class="text-4xl text-yellow-400 animate-pulse mb-2">SELAMAT BERMAIN!</div>
+                        <div class="flex gap-4">
+                            <button onclick="pauseGame()" id="btnPause" class="btn-retro px-4 py-1 text-2xl">PAUSE</button>
+                            <button onclick="forceEndTurn()" id="btnEndTurn" class="btn-retro px-4 py-1 text-2xl">AKHIRI GAME</button>
+                        </div>
+                    </div>
+
+                    <div class="flex-1 flex flex-col items-end px-8">
+                        <div class="text-3xl text-blue-400">SOAL BENAR</div>
+                        <div class="text-5xl text-white"><span id="p1Correct">0</span>/10</div>
+                    </div>
+                </div>
+
+                <!-- Arena -->
+                <div class="flex-1 flex justify-center items-center p-4">
+                    <!-- Aspect ratio container for canvas -->
+                    <div class="h-full aspect-[4/3] nokia-screen rounded-lg overflow-hidden">
+                        <canvas id="gameCanvas" width="600" height="450"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. QUIZ MODAL -->
+            <div id="quizModal" class="absolute inset-0 modal-overlay z-50 flex items-center justify-center hidden">
+                <div class="bg-gray-100 p-8 border-8 border-gray-400 rounded-3xl w-11/12 max-w-5xl text-gray-900 animate-pop flex flex-col shadow-[0_0_50px_rgba(255,255,255,0.2)]">
+                    <div class="flex justify-between items-center mb-6 border-b-4 border-gray-300 pb-4">
+                        <h2 class="text-5xl font-bold text-blue-800">SOAL PPKn</h2>
+                        <div id="quizNumber" class="text-4xl bg-yellow-400 px-6 py-2 rounded-xl border-4 border-yellow-600 font-bold">Soal 1/10</div>
+                    </div>
+                    
+                    <p id="quizQuestion" class="text-5xl font-bold mb-8 leading-tight text-center px-4"></p>
+                    
+                    <div id="quizOptions" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4 flex-1">
+                        <!-- Options generated by JS -->
+                    </div>
+
+                    <div id="quizFeedback" class="hidden flex-col items-center justify-center p-6 bg-gray-200 border-4 border-gray-400 rounded-xl mt-4">
+                        <h3 id="feedbackTitle" class="text-5xl font-bold mb-2"></h3>
+                        <p id="feedbackExp" class="text-3xl text-center mb-6"></p>
+                        <button onclick="resumeGameAfterQuiz()" class="btn-retro bg-green-400 text-3xl py-4 px-12 font-bold w-full max-w-md">LANJUT BERMAIN</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 6. TURN TRANSITION MODAL -->
+            <div id="transitionModal" class="absolute inset-0 modal-overlay z-50 flex items-center justify-center hidden">
+                <div class="bg-gray-800 p-12 border-8 border-yellow-500 rounded-3xl text-center animate-pop">
+                    <h2 id="transitionMsg" class="text-7xl text-yellow-400 mb-8 pixel-text">GAME OVER!</h2>
+                    <p class="text-4xl text-white mb-12">Permainan Selesai</p>
+                    <button onclick="showResults()" class="btn-retro bg-blue-400 text-5xl py-6 px-16 font-bold">LIHAT HASIL</button>
+                </div>
+            </div>
+
+            <!-- 7. GAME OVER / RESULTS -->
+            <div id="viewResults" class="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 z-40 hidden">
+                <div class="bg-gray-800 p-8 border-8 border-green-500 rounded-3xl w-11/12 max-w-5xl text-center shadow-2xl animate-pop flex flex-col items-center">
+                    <h1 class="text-7xl text-yellow-400 mb-2 pixel-text">PERMAINAN SELESAI!</h1>
+                    <h2 class="text-4xl text-white mb-6 bg-green-700 py-2 px-6 rounded-xl border-4 border-green-400 inline-block">SKOR AKHIR <span id="resPlayerName"></span>: <span id="resP1Score" class="font-bold text-yellow-300">0</span></h2>
+                    
+                    <div class="bg-gray-900 p-4 border-4 border-yellow-500 rounded-xl w-3/4 max-w-2xl mb-8">
+                        <h3 class="text-4xl text-yellow-400 mb-4 pixel-text">🏆 LEADERBOARD TOP 5 🏆</h3>
+                        <div id="leaderboardContainer" class="flex flex-col gap-2 text-2xl text-left w-full px-8">
+                            <!-- Leaderboard items will go here -->
+                        </div>
+                    </div>
+                    
+                    <p class="text-3xl text-yellow-200 mb-6 italic">"Terus belajar dan jadilah anak Indonesia yang menghargai perbedaan!"</p>
+                    
+                    <div class="flex justify-center gap-6">
+                        <button onclick="resetApp()" class="btn-retro bg-yellow-400 text-4xl py-4 px-12 font-bold">MAIN LAGI</button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // --- DATA SOAL PPKn ---
+        const bankSoal = [
+            {
+                q: "Apa arti Bhinneka Tunggal Ika?",
+                options: ["Bersatu karena sama", "Berbeda-beda tetapi tetap satu", "Semua harus sama", "Berbeda dan terpisah"],
+                answer: 1,
+                exp: "Bhinneka Tunggal Ika bermakna meskipun berbeda-beda tetapi pada hakikatnya bangsa Indonesia tetap adalah satu kesatuan."
+            },
+            {
+                q: "Bhinneka Tunggal Ika berasal dari kitab ...",
+                options: ["Sutasoma", "Negarakertagama", "Ramayana", "Mahabharata"],
+                answer: 0,
+                exp: "Kalimat Bhinneka Tunggal Ika diambil dari Kitab Sutasoma karangan Mpu Tantular pada masa Kerajaan Majapahit."
+            },
+            {
+                q: "Siapakah pengarang Kitab Sutasoma?",
+                options: ["Gajah Mada", "Hayam Wuruk", "Mpu Tantular", "Mpu Prapanca"],
+                answer: 2,
+                exp: "Kitab Sutasoma dikarang oleh Mpu Tantular, seorang pujangga ternama pada masa Kerajaan Majapahit."
+            },
+            {
+                q: "Di manakah tulisan Bhinneka Tunggal Ika terdapat?",
+                options: ["Di kepala Garuda", "Pada pita yang dicengkeram Garuda Pancasila", "Di sayap Garuda", "Di ekor Garuda"],
+                answer: 1,
+                exp: "Semboyan ini tertulis pada pita putih yang dicengkeram oleh kaki burung Garuda Pancasila."
+            },
+            {
+                q: "Manakah yang merupakan contoh keberagaman suku bangsa Indonesia?",
+                options: ["Jawa, Sunda, Batak, dan Dayak", "Merah, kuning, dan hijau", "Meja, kursi, dan lemari", "Gunung, sungai, dan laut"],
+                answer: 0,
+                exp: "Jawa, Sunda, Batak, dan Dayak adalah contoh nama-nama suku bangsa yang ada di Indonesia."
+            },
+            {
+                q: "Bahasa Indonesia berfungsi sebagai ...",
+                options: ["Bahasa persatuan", "Bahasa daerah", "Bahasa asing", "Bahasa suku tertentu"],
+                answer: 0,
+                exp: "Bahasa Indonesia digunakan sebagai bahasa persatuan untuk menghubungkan berbagai suku yang memiliki bahasa daerah berbeda."
+            },
+            {
+                q: "Apa yang sebaiknya dilakukan ketika teman sedang beribadah?",
+                options: ["Mengganggunya", "Mengejeknya", "Menghormatinya", "Mengajaknya bermain"],
+                answer: 2,
+                exp: "Kita harus saling menghormati dan menjaga ketenangan agar teman dapat beribadah dengan khusyuk."
+            },
+            {
+                q: "Jika teman memiliki pakaian adat yang berbeda, kita sebaiknya ...",
+                options: ["Mengejeknya", "Menghargainya", "Menertawakannya", "Menjauhinya"],
+                answer: 1,
+                exp: "Setiap daerah memiliki pakaian adat yang unik. Kita harus menghargai keberagaman budaya tersebut."
+            },
+            {
+                q: "Mengapa Bhinneka Tunggal Ika penting bagi bangsa Indonesia?",
+                options: ["Agar semua budaya menjadi sama", "Agar persatuan dan kesatuan tetap terjaga", "Agar kita tidak memiliki perbedaan", "Agar budaya daerah hilang"],
+                answer: 1,
+                exp: "Dengan semboyan ini, perbedaan tidak menjadi penghalang, melainkan alat untuk mempererat persatuan bangsa."
+            },
+            {
+                q: "Manakah sikap yang sesuai dengan Bhinneka Tunggal Ika?",
+                options: ["Memilih teman berdasarkan suku", "Merasa suku sendiri paling hebat", "Berteman tanpa membeda-bedakan", "Mengejek bahasa daerah teman"],
+                answer: 2,
+                exp: "Berteman dengan siapa saja tanpa membedakan suku, agama, dan ras adalah penerapan nyata Bhinneka Tunggal Ika."
+            }
+        ];
+
+        // --- GAME VARIABLES ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Grid setup (20x15 grid for 4:3 aspect ratio)
+        const gridSize = 20; 
+        const tileCountX = 30;
+        const tileCountY = 22;
+        canvas.width = tileCountX * gridSize;
+        canvas.height = tileCountY * gridSize;
+
+        let gameLoop;
+        let speed = 200; // ms per tick
+        let isPaused = false;
+        
+        let playerStats = { name: "Pemain", score: 0, correct: 0, wrong: 0 };
+        let leaderboard = JSON.parse(localStorage.getItem('snakeLeaderboard')) || [];
+        
+        let snake = [];
+        let dx = 1;
+        let dy = 0;
+        let nextDx = 1;
+        let nextDy = 0;
+        let food = { x: 15, y: 10 };
+        
+        let availableQuestions = [];
+        let currentQuestion = null;
+        let questionsAskedCount = 0;
+
+        // Colors
+        const COLOR_BG = '#879A27';
+        const COLOR_P1 = '#1A2608';
+        const COLOR_P2 = '#001A33';
+        const COLOR_FOOD = '#CC0000';
+
+        // --- UI NAVIGATION ---
+        function showView(viewId) {
+            document.getElementById('viewMainMenu').classList.add('hidden');
+            document.getElementById('viewHowTo').classList.add('hidden');
+            document.getElementById('viewSettings').classList.add('hidden');
+            document.getElementById('viewGame').classList.add('hidden');
+            document.getElementById('viewResults').classList.add('hidden');
+            document.getElementById(viewId).classList.remove('hidden');
+        }
+
+        function checkNameAndGoToSettings() {
+            const nameInput = document.getElementById('playerNameInput').value.trim();
+            if (nameInput === "") {
+                alert("Silakan masukkan namamu terlebih dahulu!");
+                return;
+            }
+            playerStats.name = nameInput.toUpperCase();
+            showView('viewSettings');
+        }
+
+        // --- CORE GAME FUNCTIONS ---
+        function initGameData() {
+            playerStats.score = 0;
+            playerStats.correct = 0;
+            playerStats.wrong = 0;
+            updateScoreBoardUI();
+        }
+
+        function startGame(selectedSpeed) {
+            speed = selectedSpeed;
+            initGameData();
+            showView('viewGame');
+            startSinglePlayer();
+        }
+
+        function resetSnake() {
+            snake = [];
+            // Start in middle
+            let startX = Math.floor(tileCountX / 2);
+            let startY = Math.floor(tileCountY / 2);
+            for(let i=0; i<3; i++) {
+                snake.push({x: startX - i, y: startY});
+            }
+            dx = 1; dy = 0;
+            nextDx = 1; nextDy = 0;
+            spawnFood();
+        }
+
+        function spawnFood() {
+            let valid = false;
+            while(!valid) {
+                food.x = Math.floor(Math.random() * tileCountX);
+                food.y = Math.floor(Math.random() * tileCountY);
+                valid = true;
+                // Check if food spawns on snake
+                for(let segment of snake) {
+                    if(segment.x === food.x && segment.y === food.y) {
+                        valid = false;
+                        break;
+                    }
+                }
+            }
+        }
+
+        function startSinglePlayer() {
+            document.getElementById('displayPlayerName').innerText = playerStats.name;
+            document.getElementById('turnIndicator').className = "text-4xl text-green-400 animate-pulse mb-2 pixel-text";
+            
+            // Reset questions
+            availableQuestions = [...bankSoal];
+            questionsAskedCount = 0;
+            
+            resetSnake();
+            isPaused = false;
+            document.getElementById('btnPause').innerText = "PAUSE";
+            
+            if(gameLoop) clearTimeout(gameLoop);
+            gameLoop = setTimeout(tick, speed);
+        }
+
+        function forceEndTurn() {
+            if(isPaused) return;
+            handleDeath(true);
+        }
+
+        function handleDeath(forced = false) {
+            clearTimeout(gameLoop);
+            document.getElementById('transitionMsg').innerText = forced ? "PERMAINAN DIAKHIRI" : "YAH, KAMU MENABRAK!";
+            document.getElementById('transitionModal').classList.remove('hidden');
+        }
+
+        function tick() {
+            if (isPaused) return;
+
+            // Apply buffered direction
+            dx = nextDx;
+            dy = nextDy;
+
+            // Move Head
+            let head = { x: snake[0].x + dx, y: snake[0].y + dy };
+
+            // Check Wall Collision
+            if (head.x < 0 || head.x >= tileCountX || head.y < 0 || head.y >= tileCountY) {
+                handleDeath();
+                return;
+            }
+
+            // Check Self Collision
+            for (let i = 0; i < snake.length; i++) {
+                if (head.x === snake[i].x && head.y === snake[i].y) {
+                    handleDeath();
+                    return;
+                }
+            }
+
+            snake.unshift(head); // Add new head
+
+            // Check Food
+            if (head.x === food.x && head.y === food.y) {
+                // Ate food
+                playerStats.score += 5; // Base score for eating
+                updateScoreBoardUI();
+                
+                if (availableQuestions.length > 0 && questionsAskedCount < 10) {
+                    triggerQuiz();
+                    return; // Stop loop, will resume after quiz
+                } else {
+                    // No more questions, just grow and continue
+                    spawnFood();
+                }
+            } else {
+                snake.pop(); // Remove tail if no food eaten
+            }
+
+            draw();
+            gameLoop = setTimeout(tick, speed);
+        }
+
+        function draw() {
+            // Clear canvas
+            ctx.fillStyle = COLOR_BG;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Snake
+            ctx.fillStyle = COLOR_P1;
+            for (let i = 0; i < snake.length; i++) {
+                // Add slight gap for pixel effect
+                ctx.fillRect(snake[i].x * gridSize + 1, snake[i].y * gridSize + 1, gridSize - 2, gridSize - 2);
+            }
+
+            // Draw Food (Apple)
+            ctx.fillStyle = COLOR_FOOD;
+            ctx.fillRect(food.x * gridSize + 2, food.y * gridSize + 2, gridSize - 4, gridSize - 4);
+            // Stem
+            ctx.fillStyle = '#000';
+            ctx.fillRect(food.x * gridSize + (gridSize/2) - 1, food.y * gridSize, 2, 4);
+        }
+
+        // --- INPUT HANDLING ---
+        window.addEventListener('keydown', e => {
+            if(document.getElementById('viewGame').classList.contains('hidden')) return;
+            if(isPaused || !document.getElementById('quizModal').classList.contains('hidden') || !document.getElementById('transitionModal').classList.contains('hidden')) return;
+
+            switch(e.key) {
+                case 'ArrowUp':
+                case 'w':
+                case 'W':
+                    if (dy === 0) { nextDx = 0; nextDy = -1; }
+                    break;
+                case 'ArrowDown':
+                case 's':
+                case 'S':
+                    if (dy === 0) { nextDx = 0; nextDy = 1; }
+                    break;
+                case 'ArrowLeft':
+                case 'a':
+                case 'A':
+                    if (dx === 0) { nextDx = -1; nextDy = 0; }
+                    break;
+                case 'ArrowRight':
+                case 'd':
+                case 'D':
+                    if (dx === 0) { nextDx = 1; nextDy = 0; }
+                    break;
+            }
+        });
+
+        function pauseGame() {
+            let btn = document.getElementById('btnPause');
+            if (isPaused) {
+                isPaused = false;
+                btn.innerText = "PAUSE";
+                gameLoop = setTimeout(tick, speed);
+            } else {
+                isPaused = true;
+                btn.innerText = "LANJUT";
+                clearTimeout(gameLoop);
+            }
+        }
+
+        // --- QUIZ SYSTEM ---
+        function triggerQuiz() {
+            clearTimeout(gameLoop);
+            
+            // Select random question
+            let randomIndex = Math.floor(Math.random() * availableQuestions.length);
+            currentQuestion = availableQuestions[randomIndex];
+            availableQuestions.splice(randomIndex, 1); // Remove from pool
+            questionsAskedCount++;
+
+            // Update UI
+            document.getElementById('quizNumber').innerText = `Soal ${questionsAskedCount}/10`;
+            document.getElementById('quizQuestion').innerText = currentQuestion.q;
+            
+            const optionsContainer = document.getElementById('quizOptions');
+            optionsContainer.innerHTML = '';
+            
+            currentQuestion.options.forEach((opt, index) => {
+                let btn = document.createElement('button');
+                btn.className = 'btn-answer text-3xl font-bold p-6 rounded-xl text-left flex items-center gap-4';
+                let letter = String.fromCharCode(65 + index); // A, B, C, D
+                btn.innerHTML = `<span class="bg-gray-300 text-gray-800 px-4 py-2 rounded-lg">${letter}</span> ${opt}`;
+                btn.onclick = () => handleAnswer(index, btn);
+                optionsContainer.appendChild(btn);
+            });
+
+            document.getElementById('quizOptions').classList.remove('hidden');
+            document.getElementById('quizFeedback').classList.add('hidden');
+            document.getElementById('quizModal').classList.remove('hidden');
+        }
+
+        function handleAnswer(selectedIndex, btnElement) {
+            // Disable all buttons
+            const btns = document.getElementById('quizOptions').querySelectorAll('button');
+            btns.forEach(b => b.disabled = true);
+
+            const isCorrect = (selectedIndex === currentQuestion.answer);
+
+            const feedbackTitle = document.getElementById('feedbackTitle');
+            const feedbackExp = document.getElementById('feedbackExp');
+
+            if (isCorrect) {
+                btnElement.classList.add('bg-green-300', 'border-green-600');
+                feedbackTitle.innerText = "⭐ HEBAT! JAWABAN BENAR! ⭐";
+                feedbackTitle.className = "text-5xl font-bold mb-2 text-green-600";
+                playerStats.score += 10;
+                playerStats.correct += 1;
+            } else {
+                btnElement.classList.add('bg-red-300', 'border-red-600');
+                // Highlight correct answer
+                btns[currentQuestion.answer].classList.add('bg-green-300', 'border-green-600');
+                
+                feedbackTitle.innerText = "BELUM TEPAT, TETAP SEMANGAT!";
+                feedbackTitle.className = "text-5xl font-bold mb-2 text-red-600";
+                playerStats.wrong += 1;
+            }
+
+            feedbackExp.innerText = currentQuestion.exp;
+            
+            updateScoreBoardUI();
+
+            // Show feedback
+            setTimeout(() => {
+                document.getElementById('quizOptions').classList.add('hidden');
+                document.getElementById('quizFeedback').classList.remove('hidden');
+                document.getElementById('quizFeedback').style.display = 'flex';
+            }, 800);
+        }
+
+        function resumeGameAfterQuiz() {
+            document.getElementById('quizModal').classList.add('hidden');
+            document.getElementById('quizFeedback').style.display = 'none';
+            spawnFood();
+            draw();
+            // Small delay before moving again
+            setTimeout(() => {
+                if(!isPaused) gameLoop = setTimeout(tick, speed);
+            }, 500);
+        }
+
+        function updateScoreBoardUI() {
+            document.getElementById('p1Score').innerText = playerStats.score;
+            document.getElementById('p1Correct').innerText = playerStats.correct;
+        }
+
+        // --- RESULTS & LEADERBOARD ---
+        function showResults() {
+            document.getElementById('transitionModal').classList.add('hidden');
+            document.getElementById('viewGame').classList.add('hidden');
+            
+            document.getElementById('resPlayerName').innerText = playerStats.name;
+            document.getElementById('resP1Score').innerText = playerStats.score;
+            
+            // Save to Leaderboard
+            leaderboard.push({ name: playerStats.name, score: playerStats.score });
+            
+            // Sort descending by score
+            leaderboard.sort((a, b) => b.score - a.score);
+            
+            // Keep top 50 in memory/storage to avoid getting too large
+            if (leaderboard.length > 50) leaderboard = leaderboard.slice(0, 50);
+            
+            localStorage.setItem('snakeLeaderboard', JSON.stringify(leaderboard));
+
+            // Render Leaderboard UI (Top 5)
+            const lbContainer = document.getElementById('leaderboardContainer');
+            lbContainer.innerHTML = '';
+            
+            const top5 = leaderboard.slice(0, 5);
+            top5.forEach((entry, index) => {
+                const colorClass = index === 0 ? 'text-yellow-300 font-bold text-3xl' : 'text-white';
+                const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
+                
+                const item = document.createElement('div');
+                item.className = `flex justify-between items-center bg-gray-800 p-3 rounded border-b-2 border-gray-700 ${colorClass}`;
+                item.innerHTML = `
+                    <div class="flex gap-4">
+                        <span class="w-8 text-center">${medal}</span>
+                        <span>${entry.name}</span>
+                    </div>
+                    <span>${entry.score} PTS</span>
+                `;
+                lbContainer.appendChild(item);
+            });
+
+            document.getElementById('viewResults').classList.remove('hidden');
+        }
+
+        function resetApp() {
+            document.getElementById('playerNameInput').value = '';
+            showView('viewMainMenu');
+        }
+
+        // Initial setup
+        showView('viewMainMenu');
+
+    </script>
+</body>
+</html>
